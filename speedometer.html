@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Velocímetro Moderno</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap');
+
+    :root {
+      --bg:        #080c10;
+      --panel:     rgba(255,255,255,0.04);
+      --border:    rgba(255,255,255,0.08);
+      --accent:    #00d4ff;
+      --accent2:   #0088cc;
+      --green:     #34c759;
+      --orange:    #ff9f0a;
+      --red:       #ff3b30;
+      --text:      #e8f4f8;
+      --muted:     rgba(232,244,248,0.45);
+      --track:     rgba(255,255,255,0.07);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      user-select: none;
+    }
+
+    /* ── ambient glow behind gauge ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -60%);
+      width: 520px; height: 520px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,212,255,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════════
+       LAYOUT
+    ══════════════════════════════════════ */
+    .dashboard {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: min(100vw, 480px);
+      padding: 24px 16px 28px;
+    }
+
+    /* ── TOP STATUS BAR ── */
+    .status-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .status-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    /* ── MAIN GAUGE ── */
+    .gauge-wrap {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gauge-svg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      overflow: visible;
+    }
+
+    /* tick marks */
+    .tick { stroke: rgba(255,255,255,0.15); stroke-width: 1.5; stroke-linecap: round; }
+    .tick-major { stroke: rgba(255,255,255,0.35); stroke-width: 2.2; }
+    .tick-label {
+      fill: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    /* arc track */
+    #arc-track {
+      fill: none;
+      stroke: var(--track);
+      stroke-width: 14;
+      stroke-linecap: round;
+    }
+    #arc-speed {
+      fill: none;
+      stroke-width: 14;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.35s cubic-bezier(0.34,1.3,0.64,1),
+                  stroke 0.35s ease;
+    }
+    /* glow on arc */
+    #arc-glow {
+      fill: none;
+      stroke-width: 22;
+      stroke-linecap: round;
+      opacity: 0.18;
+      transition: stroke-dashoffset 0.35s cubic-bezier(0.34,1.3,0.64,1),
+                  stroke 0.35s ease;
+      filter: blur(4px);
+    }
+
+    /* ── CENTER DISPLAY ── */
+    .center-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      z-index: 2;
+    }
+
+    .speed-number {
+      font-size: 86px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -4px;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+      text-shadow:
+        0 0 30px rgba(0,212,255,0.5),
+        0 0 60px rgba(0,212,255,0.2);
+      transition: color 0.3s ease;
+    }
+
+    .speed-unit {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: -4px;
+    }
+
+    .speed-limit-badge {
+      margin-top: 8px;
+      background: rgba(255,159,10,0.15);
+      border: 1px solid rgba(255,159,10,0.3);
+      border-radius: 8px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--orange);
+      letter-spacing: 0.5px;
+      transition: opacity 0.3s;
+    }
+    .speed-limit-badge.hidden { opacity: 0; }
+
+    /* ── GEAR / DRIVE MODE ── */
+    .drive-mode {
+      position: absolute;
+      bottom: 34px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .gear {
+      font-size: 22px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.2);
+      letter-spacing: 2px;
+      transition: color 0.2s, text-shadow 0.2s;
+      cursor: default;
+    }
+    .gear.active {
+      color: var(--accent);
+      text-shadow: 0 0 14px rgba(0,212,255,0.7);
+    }
+
+    /* ── INFO CARDS ROW ── */
+    .cards {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      backdrop-filter: blur(8px);
+    }
+
+    .card-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card-value {
+      font-size: 22px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      color: var(--text);
+    }
+    .card-unit {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .card-bar-wrap {
+      height: 3px;
+      background: var(--track);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    .card-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    /* ── BATTERY STRIP ── */
+    .battery-row {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .battery-icon {
+      position: relative;
+      width: 38px; height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .battery-icon::after {
+      content: '';
+      position: absolute;
+      top: 50%; right: -6px;
+      transform: translateY(-50%);
+      width: 4px; height: 10px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 0 2px 2px 0;
+    }
+    .battery-fill {
+      position: absolute;
+      top: 2px; left: 2px; bottom: 2px;
+      border-radius: 2px;
+      background: var(--green);
+      transition: width 0.6s ease, background 0.4s ease;
+    }
+    .battery-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .battery-track {
+      height: 4px;
+      background: var(--track);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .battery-progress {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      transition: width 0.6s ease;
+      box-shadow: 0 0 6px rgba(0,212,255,0.4);
+    }
+    .battery-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .battery-pct {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .battery-range {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .battery-charging {
+      font-size: 12px;
+      color: var(--green);
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .battery-charging.visible { opacity: 1; }
+
+    /* ── HINT ── */
+    .hint {
+      font-size: 11px;
+      color: rgba(255,255,255,0.2);
+      letter-spacing: 0.5px;
+      text-align: center;
+      padding-bottom: 2px;
+    }
+
+    /* ── OVER-SPEED FLASH ── */
+    @keyframes overspeed {
+      0%,100% { box-shadow: none; }
+      50%      { box-shadow: 0 0 40px 8px rgba(255,59,48,0.35) inset; }
+    }
+    body.overspeed { animation: overspeed 0.6s ease-in-out infinite; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-height: 680px) {
+      .gauge-wrap { width: 260px; height: 260px; }
+      .speed-number { font-size: 68px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="dashboard">
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="dot"></div>
+      <span class="status-label">En marcha</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Odómetro</span>
+      <span class="status-value" id="odo">24 810 km</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label" id="time-label">00:00</span>
+    </div>
+  </div>
+
+  <!-- MAIN GAUGE -->
+  <div class="gauge-wrap">
+
+    <svg class="gauge-svg" viewBox="0 0 320 320">
+      <defs>
+        <filter id="glow-filter">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Tick marks + labels generated by JS -->
+      <g id="ticks"></g>
+
+      <!-- Arc track (background) -->
+      <!-- Arc: from 135° to 405° = 270° sweep, centered at 160,160, r=130 -->
+      <path id="arc-track" d=""/>
+
+      <!-- Glow layer -->
+      <path id="arc-glow" d=""/>
+
+      <!-- Speed arc -->
+      <path id="arc-speed" d=""/>
+    </svg>
+
+    <!-- Center digital display -->
+    <div class="center-display">
+      <div class="speed-number" id="spd-num">0</div>
+      <div class="speed-unit">km/h</div>
+      <div class="speed-limit-badge hidden" id="limit-badge">⚠ Límite 120</div>
+    </div>
+
+    <!-- Drive mode selector -->
+    <div class="drive-mode">
+      <span class="gear" id="g-r">R</span>
+      <span class="gear" id="g-n">N</span>
+      <span class="gear active" id="g-d">D</span>
+    </div>
+
+  </div>
+
+  <!-- INFO CARDS -->
+  <div class="cards">
+    <!-- Power -->
+    <div class="card">
+      <span class="card-label">Potencia</span>
+      <span class="card-value" id="power-val">0</span>
+      <span class="card-unit">kW</span>
+      <div class="card-bar-wrap">
+        <div class="card-bar" id="power-bar" style="width:0%;background:var(--accent)"></div>
+      </div>
+    </div>
+    <!-- Regen -->
+    <div class="card">
+      <span class="card-label">Regen</span>
+      <span class="card-value" id="regen-val">0</span>
+      <span class="card-unit">kW</span>
+      <div class="card-bar-wrap">
+        <div class="card-bar" id="regen-bar" style="width:0%;background:var(--green)"></div>
+      </div>
+    </div>
+    <!-- Eficiencia -->
+    <div class="card">
+      <span class="card-label">Eficiencia</span>
+      <span class="card-value" id="eff-val">—</span>
+      <span class="card-unit">Wh/km</span>
+      <div class="card-bar-wrap">
+        <div class="card-bar" id="eff-bar" style="width:50%;background:var(--green)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATTERY -->
+  <div class="battery-row">
+    <div class="battery-icon">
+      <div class="battery-fill" id="bat-fill" style="width:78%"></div>
+    </div>
+    <div class="battery-info">
+      <div class="battery-track">
+        <div class="battery-progress" id="bat-bar" style="width:78%"></div>
+      </div>
+      <div class="battery-meta">
+        <span class="battery-pct" id="bat-pct">78%</span>
+        <span class="battery-charging" id="bat-charge">⚡ Cargando</span>
+        <span class="battery-range" id="bat-range">Autonomía: 312 km</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HINT -->
+  <div class="hint">▲ ▼ o desliza para simular velocidad</div>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const MAX_SPEED   = 200;   // km/h
+const ARC_START   = 135;   // degrees (clock-angle)
+const ARC_SWEEP   = 270;   // degrees
+const CX = 160, CY = 160, R = 126;
+const LIMIT_SPEED = 121;   // km/h at which warning shows
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+function toRad(deg) { return deg * Math.PI / 180; }
+
+function polarToXY(angleDeg, radius) {
+  const a = toRad(angleDeg - 90); // SVG 0° = top
+  return {
+    x: CX + radius * Math.cos(a),
+    y: CY + radius * Math.sin(a)
+  };
+}
+
+function arcPath(startDeg, endDeg, r) {
+  const s   = polarToXY(startDeg, r);
+  const e   = polarToXY(endDeg,   r);
+  const big = (endDeg - startDeg) > 180 ? 1 : 0;
+  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${big} 1 ${e.x} ${e.y}`;
+}
+
+/* ════════════════════════════════════════
+   BUILD STATIC SVG ELEMENTS
+════════════════════════════════════════ */
+function buildGauge() {
+  const svg    = document.querySelector('.gauge-svg');
+  const tickG  = document.getElementById('ticks');
+
+  /* ── track arc ── */
+  document.getElementById('arc-track').setAttribute(
+    'd', arcPath(ARC_START, ARC_START + ARC_SWEEP, R));
+
+  /* ── tick marks ── */
+  const steps = 40; // total minor ticks
+  for (let i = 0; i <= steps; i++) {
+    const frac   = i / steps;
+    const angle  = ARC_START + frac * ARC_SWEEP;
+    const isMajor = (i % 4 === 0);
+    const len    = isMajor ? 12 : 7;
+    const r1     = R + 18;
+    const r2     = r1 - len;
+    const p1     = polarToXY(angle, r1);
+    const p2     = polarToXY(angle, r2);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y);
+    line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+    line.setAttribute('class', isMajor ? 'tick tick-major' : 'tick');
+    tickG.appendChild(line);
+
+    /* label on major ticks every 8 steps = 0,40,80,120,160,200 */
+    if (i % 8 === 0) {
+      const speed  = Math.round(frac * MAX_SPEED);
+      const lp     = polarToXY(angle, r1 + 16);
+      const text   = document.createElementNS('http://www.w3.org/2000/svg','text');
+      text.setAttribute('x', lp.x);
+      text.setAttribute('y', lp.y);
+      text.setAttribute('class', 'tick-label');
+      text.textContent = speed;
+      tickG.appendChild(text);
+    }
+  }
+}
+buildGauge();
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let speed       = 0;      // current displayed speed
+let targetSpeed = 0;      // target (from input)
+let battery     = 78;     // %
+let totalWh     = 0;
+let totalKm     = 0;
+
+/* ════════════════════════════════════════
+   UPDATE ARC
+════════════════════════════════════════ */
+function speedColor(s) {
+  if (s < 80)  return '#00d4ff';
+  if (s < 130) return '#34c759';
+  if (s < 160) return '#ff9f0a';
+  return '#ff3b30';
+}
+
+function updateArc(s) {
+  const frac   = Math.min(s / MAX_SPEED, 1);
+  const endDeg = ARC_START + frac * ARC_SWEEP;
+  const col    = speedColor(s);
+  const path   = frac > 0.005
+    ? arcPath(ARC_START, endDeg, R)
+    : 'M 0 0'; // hide
+
+  document.getElementById('arc-speed').setAttribute('d', path);
+  document.getElementById('arc-speed').style.stroke = col;
+  document.getElementById('arc-glow').setAttribute('d', path);
+  document.getElementById('arc-glow').style.stroke = col;
+}
+
+/* ════════════════════════════════════════
+   UPDATE ALL READOUTS
+════════════════════════════════════════ */
+function updateUI(s) {
+  const spdEl  = document.getElementById('spd-num');
+  spdEl.textContent = Math.round(s);
+
+  /* color shift on number */
+  spdEl.style.textShadow = s < 130
+    ? '0 0 30px rgba(0,212,255,0.5), 0 0 60px rgba(0,212,255,0.2)'
+    : s < 160
+      ? '0 0 30px rgba(255,159,10,0.5), 0 0 60px rgba(255,159,10,0.2)'
+      : '0 0 30px rgba(255,59,48,0.6), 0 0 60px rgba(255,59,48,0.25)';
+
+  /* speed limit badge */
+  const badge = document.getElementById('limit-badge');
+  badge.classList.toggle('hidden', s < LIMIT_SPEED);
+
+  /* overspeed body glow */
+  document.body.classList.toggle('overspeed', s > 160);
+
+  /* power kW (fake linear model) */
+  const kw = Math.round(s * 1.4);
+  document.getElementById('power-val').textContent = kw;
+  document.getElementById('power-bar').style.width  = Math.min(kw/280*100,100) + '%';
+
+  /* regen (only when decelerating) */
+  const regenKw = (targetSpeed < speed && speed > 5) ? Math.round((speed - targetSpeed) * 0.8) : 0;
+  document.getElementById('regen-val').textContent = Math.min(regenKw, 60);
+  document.getElementById('regen-bar').style.width = Math.min(regenKw/60*100,100) + '%';
+
+  /* efficiency */
+  const eff = s > 5 ? Math.round(120 + s * 0.6) : 0;
+  document.getElementById('eff-val').textContent = s > 5 ? eff : '—';
+  const effPct = s > 5 ? Math.max(10, 100 - ((eff - 120) / 200 * 100)) : 50;
+  document.getElementById('eff-bar').style.width = effPct + '%';
+  document.getElementById('eff-bar').style.background =
+    eff < 180 ? 'var(--green)' : eff < 250 ? 'var(--orange)' : 'var(--red)';
+
+  updateArc(s);
+}
+
+/* ════════════════════════════════════════
+   ANIMATION LOOP
+════════════════════════════════════════ */
+let lastTs = null;
+
+function frame(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+
+  /* smooth interpolation toward target */
+  const diff  = targetSpeed - speed;
+  const step  = diff > 0 ? Math.min(diff, 60 * dt) : Math.max(diff, -80 * dt);
+  speed += step;
+  if (Math.abs(diff) < 0.2) speed = targetSpeed;
+
+  /* battery drain */
+  if (speed > 2) {
+    totalWh += (120 + speed * 0.6) * speed / 3600 * dt * 0.0001;
+    totalKm += speed * dt / 3600;
+    battery  = Math.max(0, 78 - totalWh / 10);
+    updateBattery(battery);
+  }
+
+  updateUI(speed);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ════════════════════════════════════════
+   BATTERY
+════════════════════════════════════════ */
+function updateBattery(pct) {
+  const p = Math.round(pct);
+  document.getElementById('bat-fill').style.width  = p + '%';
+  document.getElementById('bat-bar').style.width   = p + '%';
+  document.getElementById('bat-pct').textContent   = p + '%';
+  const range = Math.round(pct * 4);
+  document.getElementById('bat-range').textContent = `Autonomía: ${range} km`;
+
+  const fill = document.getElementById('bat-fill');
+  fill.style.background = pct > 30 ? 'var(--green)' : pct > 15 ? 'var(--orange)' : 'var(--red)';
+}
+
+/* ════════════════════════════════════════
+   CLOCK
+════════════════════════════════════════ */
+function tickClock() {
+  const n = new Date();
+  const h = String(n.getHours()).padStart(2,'0');
+  const m = String(n.getMinutes()).padStart(2,'0');
+  document.getElementById('time-label').textContent = h + ':' + m;
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+/* ════════════════════════════════════════
+   INPUT — KEYBOARD
+════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp')   targetSpeed = Math.min(MAX_SPEED, targetSpeed + 10);
+  if (e.key === 'ArrowDown') targetSpeed = Math.max(0,         targetSpeed - 10);
+});
+
+/* ════════════════════════════════════════
+   INPUT — TOUCH / SWIPE
+════════════════════════════════════════ */
+let touchStartY = null;
+document.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+document.addEventListener('touchmove',  e => {
+  if (touchStartY === null) return;
+  const dy = touchStartY - e.touches[0].clientY; // positive = swipe up
+  targetSpeed = Math.max(0, Math.min(MAX_SPEED, targetSpeed + dy * 0.4));
+  touchStartY  = e.touches[0].clientY;
+}, { passive: true });
+
+/* ════════════════════════════════════════
+   INPUT — CLICK HOLD BUTTONS (top/bottom half)
+════════════════════════════════════════ */
+let holdInterval = null;
+document.addEventListener('mousedown', e => {
+  const half = window.innerHeight / 2;
+  const inc  = e.clientY < half ? 5 : -5;
+  const go   = () => { targetSpeed = Math.max(0, Math.min(MAX_SPEED, targetSpeed + inc)); };
+  go();
+  holdInterval = setInterval(go, 80);
+});
+document.addEventListener('mouseup',   () => clearInterval(holdInterval));
+
+/* ════════════════════════════════════════
+   DRIVE MODE DISPLAY (static D)
+════════════════════════════════════════ */
+// Could extend to toggle with double-tap — left static for now
+</script>
+</body>
+</html>
