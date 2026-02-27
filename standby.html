@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StandBy</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      display: flex;
+      align-items: stretch;
+    }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      z-index: 10;
+    }
+
+    /* Waveform mic icon */
+    .waveform {
+      width: 46px; height: 46px;
+      background: rgba(44,44,46,0.92);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .waveform span {
+      display: block;
+      width: 3px;
+      background: #8E8E93;
+      border-radius: 2px;
+    }
+
+    /* Charging ring */
+    .charge-ring {
+      width: 52px; height: 52px;
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .charge-ring svg {
+      position: absolute; top: 0; left: 0;
+      transform: rotate(-90deg);
+    }
+    .charge-bolt {
+      font-size: 22px;
+      line-height: 1;
+      z-index: 1;
+      filter: drop-shadow(0 0 4px #34C759);
+    }
+
+    /* ── SPLIT PANELS ── */
+    .panels {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── LEFT: CLOCK ── */
+    .panel-left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 0 0 0 clamp(24px, 5vw, 60px);
+    }
+
+    .time {
+      font-size: clamp(110px, 17vw, 200px);
+      font-weight: 900;
+      color: #D00000;
+      line-height: 0.92;
+      letter-spacing: -6px;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum';
+      text-shadow:
+        0 0 40px rgba(210,0,0,0.55),
+        0 0 90px rgba(180,0,0,0.30),
+        0 0 160px rgba(160,0,0,0.15);
+      user-select: none;
+    }
+    .time .colon {
+      color: #8B0000;
+      letter-spacing: 0;
+    }
+
+    .date-pill {
+      margin-top: clamp(18px, 2.5vw, 30px);
+      background: rgba(58,58,60,0.88);
+      border-radius: 30px;
+      padding: 10px 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .date-month {
+      color: rgba(235,235,240,0.75);
+      font-size: clamp(20px, 2.2vw, 28px);
+      font-weight: 400;
+      letter-spacing: 0.2px;
+    }
+    .date-day {
+      color: #FFFFFF;
+      font-size: clamp(20px, 2.2vw, 28px);
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      width: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 80px 0 40px 0;
+      align-self: stretch;
+    }
+
+    /* ── RIGHT: WEATHER ── */
+    .panel-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 0 0 0 clamp(28px, 5vw, 60px);
+    }
+
+    .location-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+    .location-name {
+      color: #FFFFFF;
+      font-size: clamp(20px, 2.4vw, 30px);
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    .location-arrow {
+      color: #FFFFFF;
+      font-size: clamp(14px, 1.6vw, 20px);
+      /* Up-right nav arrow */
+      display: inline-flex;
+    }
+    .location-arrow svg {
+      fill: #FFFFFF;
+    }
+
+    .temp-main {
+      color: #FFFFFF;
+      font-size: clamp(100px, 14vw, 170px);
+      font-weight: 200;
+      line-height: 0.95;
+      letter-spacing: -4px;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+    }
+    .temp-degree {
+      font-size: 0.55em;
+      font-weight: 300;
+      vertical-align: super;
+      letter-spacing: 0;
+    }
+
+    .weather-condition {
+      margin-top: clamp(12px, 1.8vw, 22px);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cloud-svg {
+      width: clamp(28px, 3.5vw, 44px);
+      height: auto;
+      opacity: 0.95;
+    }
+    .condition-text {
+      color: #FFFFFF;
+      font-size: clamp(18px, 2.2vw, 26px);
+      font-weight: 400;
+    }
+
+    .temp-range {
+      margin-top: 5px;
+      color: rgba(210,210,215,0.85);
+      font-size: clamp(15px, 1.8vw, 22px);
+      font-weight: 400;
+      letter-spacing: 0.1px;
+    }
+
+    /* ── BLINK COLON ── */
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0.15; }
+    }
+    .colon { animation: blink 1s step-start infinite; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <!-- Waveform icon (center aligned via flex space-between with empty div) -->
+    <div style="width:52px"></div>
+
+    <!-- Waveform center -->
+    <div class="waveform">
+      <span style="height:9px"></span>
+      <span style="height:15px"></span>
+      <span style="height:20px"></span>
+      <span style="height:14px"></span>
+      <span style="height:8px"></span>
+    </div>
+
+    <!-- Charging ring right -->
+    <div class="charge-ring">
+      <svg width="52" height="52" viewBox="0 0 52 52">
+        <!-- Track -->
+        <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(52,199,89,0.2)" stroke-width="3.5"/>
+        <!-- Progress ~85% -->
+        <circle cx="26" cy="26" r="22" fill="none"
+          stroke="#34C759" stroke-width="3.5"
+          stroke-linecap="round"
+          stroke-dasharray="138.2"
+          stroke-dashoffset="21"/>
+      </svg>
+      <span class="charge-bolt">⚡️</span>
+    </div>
+  </div>
+
+  <!-- SPLIT -->
+  <div class="panels">
+
+    <!-- LEFT: Clock -->
+    <div class="panel-left">
+      <div class="time" id="time-display">
+        11<span class="colon">:</span>35
+      </div>
+      <div class="date-pill">
+        <span class="date-month" id="date-month">25 Abril</span>
+        <span class="date-day" id="date-dayname">Vi</span>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="divider"></div>
+
+    <!-- RIGHT: Weather -->
+    <div class="panel-right">
+      <div class="location-row">
+        <span class="location-name">Mentor</span>
+        <span class="location-arrow">
+          <!-- Navigation arrow (NE) -->
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path d="M5 19L19 5M19 5H9M19 5V15"
+              stroke="white" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round"
+              fill="none"/>
+          </svg>
+        </span>
+      </div>
+
+      <div class="temp-main">
+        64<span class="temp-degree">°</span>
+      </div>
+
+      <div class="weather-condition">
+        <!-- Cloud SVG -->
+        <svg class="cloud-svg" viewBox="0 0 64 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M52 38H14C8.477 38 4 33.523 4 28C4 22.962 7.706 18.786 12.56 18.097C12.196 16.768 12 15.406 12 14C12 6.268 18.268 0 26 0C31.804 0 36.8 3.346 39.162 8.248C40.388 7.745 41.663 7.5 43 7.5C49.075 7.5 54 12.425 54 18.5C54 18.668 53.996 18.834 53.988 19C59.636 19.5 64 24.244 64 30C64 34.418 60.418 38 56 38" fill="white" fill-opacity="0.85"/>
+        </svg>
+        <span class="condition-text">Nublado</span>
+      </div>
+
+      <div class="temp-range">Máx.: 69° &nbsp; Mín.: 59°</div>
+    </div>
+
+  </div>
+
+  <script>
+    const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                       'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const DAYS_ES   = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
+
+    function pad(n) { return String(n).padStart(2,'0'); }
+
+    function tick() {
+      const now  = new Date();
+      const h    = pad(now.getHours());
+      const m    = pad(now.getMinutes());
+      const d    = now.getDate();
+      const mon  = MONTHS_ES[now.getMonth()];
+      const day  = DAYS_ES[now.getDay()];
+
+      document.getElementById('time-display').innerHTML =
+        `${h}<span class="colon">:</span>${m}`;
+      document.getElementById('date-month').textContent  = `${d} ${mon}`;
+      document.getElementById('date-dayname').textContent = day;
+    }
+
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>
