@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HTML Preview</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #6c63ff;
+      --accent-hover: #8b85ff;
+      --text: #e2e8f0;
+      --text-dim: #8892b0;
+      --green: #64ffda;
+      --red: #ff6b6b;
+      --toolbar-h: 52px;
+    }
+
+    html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      height: var(--toolbar-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    #toolbar .logo {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--accent);
+      letter-spacing: .5px;
+      margin-right: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #toolbar .logo svg { width: 22px; height: 22px; }
+
+    #toolbar .sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .btn:hover { background: var(--border); border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    #toolbar .spacer { flex: 1; }
+
+    #filename-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 4px 10px;
+      width: 180px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    #filename-input:focus { border-color: var(--accent); }
+
+    /* ── Layout ── */
+    #app { display: flex; flex-direction: column; height: 100vh; }
+    #main  { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── File tree ── */
+    #sidebar {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+      transition: width .2s;
+    }
+    #sidebar.collapsed { width: 0; }
+
+    .sidebar-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #file-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text-dim);
+      transition: background .1s, color .1s;
+      border-left: 2px solid transparent;
+    }
+    .file-item:hover { background: var(--surface2); color: var(--text); }
+    .file-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(108,99,255,.08); }
+    .file-item svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .file-item .del-btn {
+      margin-left: auto;
+      opacity: 0;
+      background: none;
+      border: none;
+      color: var(--red);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      line-height: 1;
+      font-size: 14px;
+    }
+    .file-item:hover .del-btn { opacity: 1; }
+
+    /* ── Editor pane ── */
+    #editor-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .pane-tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text-dim);
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    #editor-container { flex: 1; position: relative; overflow: hidden; }
+    #code-editor {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: #abb2bf;
+      font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+      font-size: 14px;
+      line-height: 1.65;
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 16px;
+      tab-size: 2;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    /* ── Divider ── */
+    #divider {
+      width: 5px;
+      background: var(--border);
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    #divider:hover, #divider.dragging { background: var(--accent); }
+
+    /* ── Preview pane ── */
+    #preview-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 200px;
+    }
+
+    .preview-toolbar {
+      height: 38px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px;
+      flex-shrink: 0;
+    }
+    .preview-toolbar .url-bar {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-dim);
+      padding: 3px 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot.r { background: #ff5f57; }
+    .dot.y { background: #febc2e; }
+    .dot.g { background: #28c840; }
+
+    #preview-frame {
+      flex: 1;
+      border: none;
+      background: #fff;
+    }
+
+    /* ── Status bar ── */
+    #statusbar {
+      height: 22px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 11px;
+      color: rgba(255,255,255,.85);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    #statusbar .sb-item { display: flex; align-items: center; gap: 4px; }
+    #statusbar .sep { opacity: .4; }
+
+    /* ── Upload overlay ── */
+    #drop-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(108,99,255,.18);
+      border: 3px dashed var(--accent);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 99;
+      backdrop-filter: blur(4px);
+    }
+    #drop-overlay.active { display: flex; }
+    #drop-overlay p { font-size: 22px; font-weight: 600; color: var(--accent); }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.ok  { border-color: var(--green); color: var(--green); }
+    #toast.err { border-color: var(--red);   color: var(--red);   }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <span class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      HTML Preview
+    </span>
+    <div class="sep"></div>
+
+    <button class="btn" onclick="toggleSidebar()" title="Alternar panel de archivos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      Archivos
+    </button>
+
+    <button class="btn" onclick="document.getElementById('file-upload').click()" title="Cargar archivos HTML">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Cargar
+    </button>
+    <input id="file-upload" type="file" accept=".html,.htm" multiple style="display:none" onchange="loadFiles(this.files)" />
+
+    <button class="btn" onclick="newFile()" title="Nuevo archivo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      Nuevo
+    </button>
+
+    <div class="sep"></div>
+
+    <button class="btn primary" onclick="runPreview()" title="Ejecutar (Ctrl+Enter)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Ejecutar
+    </button>
+
+    <div class="spacer"></div>
+
+    <input id="filename-input" type="text" value="index.html" placeholder="nombre.html" title="Nombre del archivo activo" />
+
+    <button class="btn" onclick="downloadFile()" title="Descargar archivo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+
+    <button class="btn" onclick="copyCode()" title="Copiar código">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+
+    <button class="btn" onclick="clearEditor()" title="Limpiar editor">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </button>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-header">Archivos del proyecto</div>
+      <div id="file-list"></div>
+    </div>
+
+    <!-- Editor pane -->
+    <div id="editor-pane">
+      <div class="pane-tabs">
+        <div class="tab active" id="tab-editor" onclick="switchTab('editor')">Editor</div>
+        <div class="tab" id="tab-split" onclick="switchTab('split')">Split</div>
+      </div>
+      <div id="editor-container">
+        <textarea id="code-editor" spellcheck="false" placeholder="Escribe o pega tu HTML aquí..."></textarea>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div id="divider"></div>
+
+    <!-- Preview pane -->
+    <div id="preview-pane">
+      <div class="preview-toolbar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url-bar" id="url-bar">vista previa — index.html</div>
+        <button class="btn" onclick="reloadPreview()" style="padding:3px 8px;font-size:12px;" title="Recargar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <button class="btn" onclick="openFullscreen()" style="padding:3px 8px;font-size:12px;" title="Pantalla completa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+      </div>
+      <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals" title="Vista previa HTML"></iframe>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div id="statusbar">
+    <span class="sb-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px"><circle cx="12" cy="12" r="10"/></svg>
+      <span id="sb-status">Listo</span>
+    </span>
+    <span class="sep">|</span>
+    <span class="sb-item" id="sb-lines">0 líneas</span>
+    <span class="sep">|</span>
+    <span class="sb-item" id="sb-chars">0 caracteres</span>
+    <span class="sep">|</span>
+    <span class="sb-item" id="sb-cursor">Ln 1, Col 1</span>
+    <span class="sep">|</span>
+    <span class="sb-item">HTML</span>
+  </div>
+</div>
+
+<!-- Drop overlay -->
+<div id="drop-overlay">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="1.5" width="56" height="56"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+  <p>Suelta tus archivos HTML aquí</p>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const files = {};   // { name: content }
+let activeFile = null;
+let autoPreview = true;
+let previewDebounce;
+const STORAGE_KEY = 'html_preview_files';
+
+const editor    = document.getElementById('code-editor');
+const frame     = document.getElementById('preview-frame');
+const fileList  = document.getElementById('file-list');
+const sbLines   = document.getElementById('sb-lines');
+const sbChars   = document.getElementById('sb-chars');
+const sbCursor  = document.getElementById('sb-cursor');
+const sbStatus  = document.getElementById('sb-status');
+const urlBar    = document.getElementById('url-bar');
+const filenameInput = document.getElementById('filename-input');
+
+// ── Starter template ───────────────────────────────────────────────────────
+const STARTER = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mi Proyecto</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+      color: #e2e8f0;
+    }
+    h1 { font-size: 2.5rem; color: #6c63ff; margin-bottom: 0.5rem; }
+    p  { color: #8892b0; font-size: 1.1rem; }
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2e3350;
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>¡Hola Mundo! 👋</h1>
+    <p>Edita este HTML y haz clic en <strong>Ejecutar</strong> para previsualizar.</p>
+  </div>
+</body>
+</html>`;
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function init() {
+  loadFromStorage();
+  if (Object.keys(files).length === 0) {
+    createFileEntry('index.html', STARTER);
+    setActive('index.html');
+  }
+  setupDivider();
+  setupDropZone();
+  setupEditorEvents();
+  runPreview();
+}
+
+// ── File management ────────────────────────────────────────────────────────
+function createFileEntry(name, content = '') {
+  files[name] = content;
+  saveToStorage();
+  renderFileList();
+}
+
+function setActive(name) {
+  if (activeFile) files[activeFile] = editor.value;
+  activeFile = name;
+  editor.value = files[name] || '';
+  filenameInput.value = name;
+  urlBar.textContent = `vista previa — ${name}`;
+  renderFileList();
+  updateStats();
+  schedulePreview();
+}
+
+function renderFileList() {
+  fileList.innerHTML = '';
+  Object.keys(files).sort().forEach(name => {
+    const item = document.createElement('div');
+    item.className = 'file-item' + (name === activeFile ? ' active' : '');
+    item.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+      <button class="del-btn" onclick="deleteFile(event,'${name}')" title="Eliminar">×</button>`;
+    item.addEventListener('click', () => setActive(name));
+    fileList.appendChild(item);
+  });
+}
+
+function deleteFile(e, name) {
+  e.stopPropagation();
+  if (Object.keys(files).length === 1) { toast('No puedes eliminar el único archivo', 'err'); return; }
+  delete files[name];
+  saveToStorage();
+  if (activeFile === name) setActive(Object.keys(files)[0]);
+  else renderFileList();
+  toast(`"${name}" eliminado`, 'ok');
+}
+
+function newFile() {
+  const name = prompt('Nombre del nuevo archivo:', `page${Object.keys(files).length + 1}.html`);
+  if (!name) return;
+  const fname = name.endsWith('.html') || name.endsWith('.htm') ? name : name + '.html';
+  if (files[fname] !== undefined) { toast('Ya existe un archivo con ese nombre', 'err'); return; }
+  createFileEntry(fname, `<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8" />\n  <title>${fname}</title>\n</head>\n<body>\n  <h1>${fname}</h1>\n</body>\n</html>`);
+  setActive(fname);
+}
+
+function loadFiles(fileArr) {
+  Array.from(fileArr).forEach(f => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      createFileEntry(f.name, e.target.result);
+      setActive(f.name);
+    };
+    reader.readAsText(f);
+  });
+}
+
+// ── Preview ────────────────────────────────────────────────────────────────
+function runPreview() {
+  const code = editor.value;
+  files[activeFile] = code;
+  saveToStorage();
+  const blob = new Blob([code], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const old  = frame.src;
+  frame.src  = url;
+  if (old.startsWith('blob:')) URL.revokeObjectURL(old);
+  sbStatus.textContent = 'Actualizado';
+  setTimeout(() => sbStatus.textContent = 'Listo', 1500);
+}
+
+function reloadPreview() { runPreview(); }
+
+function schedulePreview() {
+  if (!autoPreview) return;
+  clearTimeout(previewDebounce);
+  previewDebounce = setTimeout(runPreview, 600);
+}
+
+function openFullscreen() {
+  const code = editor.value;
+  const blob = new Blob([code], { type: 'text/html' });
+  window.open(URL.createObjectURL(blob), '_blank');
+}
+
+// ── Editor events ──────────────────────────────────────────────────────────
+function setupEditorEvents() {
+  editor.addEventListener('input', () => { updateStats(); schedulePreview(); });
+  editor.addEventListener('keydown', e => {
+    // Tab → spaces
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = editor.selectionStart, end = editor.selectionEnd;
+      editor.value = editor.value.slice(0, s) + '  ' + editor.value.slice(end);
+      editor.selectionStart = editor.selectionEnd = s + 2;
+      schedulePreview();
+    }
+    // Ctrl+Enter → run
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runPreview(); }
+    // Ctrl+S → run
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); runPreview(); downloadFile(); }
+  });
+  editor.addEventListener('click',   updateCursor);
+  editor.addEventListener('keyup',   updateCursor);
+  editor.addEventListener('scroll',  updateCursor);
+  filenameInput.addEventListener('change', () => {
+    const newName = filenameInput.value.trim();
+    if (!newName || newName === activeFile) return;
+    files[newName] = files[activeFile];
+    delete files[activeFile];
+    activeFile = newName;
+    urlBar.textContent = `vista previa — ${newName}`;
+    renderFileList();
+    saveToStorage();
+  });
+}
+
+function updateStats() {
+  const txt = editor.value;
+  sbLines.textContent = (txt.match(/\n/g) || []).length + 1 + ' líneas';
+  sbChars.textContent = txt.length + ' caracteres';
+}
+
+function updateCursor() {
+  const txt = editor.value.slice(0, editor.selectionStart);
+  const lines = txt.split('\n');
+  sbCursor.textContent = `Ln ${lines.length}, Col ${lines[lines.length - 1].length + 1}`;
+}
+
+// ── Toolbar actions ────────────────────────────────────────────────────────
+function clearEditor() {
+  if (!confirm('¿Limpiar el editor?')) return;
+  editor.value = '';
+  schedulePreview();
+  updateStats();
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(editor.value).then(() => toast('¡Código copiado!', 'ok'));
+}
+
+function downloadFile() {
+  const name = filenameInput.value || 'index.html';
+  const blob = new Blob([editor.value], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  toast(`"${name}" descargado`, 'ok');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function switchTab(t) {
+  const editorPane  = document.getElementById('editor-pane');
+  const previewPane = document.getElementById('preview-pane');
+  const divider     = document.getElementById('divider');
+  document.getElementById('tab-editor').classList.toggle('active', t === 'editor');
+  document.getElementById('tab-split').classList.toggle('active', t === 'split');
+  if (t === 'editor') {
+    editorPane.style.flex  = '1';
+    previewPane.style.display = 'none';
+    divider.style.display = 'none';
+  } else {
+    editorPane.style.flex  = '1';
+    previewPane.style.display = 'flex';
+    divider.style.display = '';
+  }
+}
+
+// ── Resizable divider ──────────────────────────────────────────────────────
+function setupDivider() {
+  const div = document.getElementById('divider');
+  const main = document.getElementById('main');
+  let dragging = false, startX, startEditorW, startPreviewW;
+
+  div.addEventListener('mousedown', e => {
+    dragging = true;
+    startX = e.clientX;
+    const ep = document.getElementById('editor-pane');
+    const pp = document.getElementById('preview-pane');
+    startEditorW  = ep.getBoundingClientRect().width;
+    startPreviewW = pp.getBoundingClientRect().width;
+    div.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = e.clientX - startX;
+    const ep = document.getElementById('editor-pane');
+    const pp = document.getElementById('preview-pane');
+    const newEW = Math.max(200, startEditorW + delta);
+    const newPW = Math.max(200, startPreviewW - delta);
+    ep.style.flex = 'none';
+    ep.style.width = newEW + 'px';
+    pp.style.flex = 'none';
+    pp.style.width = newPW + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    div.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+}
+
+// ── Drag & drop ────────────────────────────────────────────────────────────
+function setupDropZone() {
+  const overlay = document.getElementById('drop-overlay');
+  let counter = 0;
+
+  document.addEventListener('dragenter', e => {
+    if ([...e.dataTransfer.items].some(i => i.kind === 'file')) {
+      counter++; overlay.classList.add('active');
+    }
+  });
+  document.addEventListener('dragleave', () => { if (--counter <= 0) { counter = 0; overlay.classList.remove('active'); } });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => {
+    e.preventDefault(); counter = 0; overlay.classList.remove('active');
+    const htmlFiles = [...e.dataTransfer.files].filter(f => f.name.match(/\.html?$/i));
+    if (htmlFiles.length === 0) { toast('Solo se aceptan archivos .html', 'err'); return; }
+    loadFiles(htmlFiles);
+  });
+}
+
+// ── Storage ────────────────────────────────────────────────────────────────
+function saveToStorage() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ files, activeFile })); } catch (_) {}
+}
+
+function loadFromStorage() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (data && data.files) {
+      Object.assign(files, data.files);
+      activeFile = data.activeFile && files[data.activeFile] !== undefined ? data.activeFile : null;
+      if (activeFile) { editor.value = files[activeFile]; filenameInput.value = activeFile; }
+      renderFileList();
+    }
+  } catch (_) {}
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 2500);
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
