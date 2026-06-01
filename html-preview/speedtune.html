@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SpeedTune">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(self)">
+  <title>SpeedTune</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      margin: 0; padding: 0; box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+
+    :root {
+      --spd: #00ff88;
+      --bg: #080810;
+      --panel: #0e0e18;
+      --line: #1a1a2a;
+    }
+
+    html, body {
+      height: 100%; height: 100dvh;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: 'Orbitron', monospace;
+      color: #fff;
+      touch-action: manipulation;
+      overscroll-behavior: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ════════════════════════════
+       PERMISSION OVERLAY
+    ════════════════════════════ */
+    #perm-overlay {
+      position: fixed; inset: 0; z-index: 999;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 32px;
+      text-align: center;
+      gap: 0;
+    }
+
+    #perm-overlay .logo-icon {
+      font-size: 52px;
+      margin-bottom: 20px;
+    }
+
+    #perm-overlay h1 {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: var(--spd);
+      text-shadow: 0 0 20px var(--spd);
+      margin-bottom: 12px;
+    }
+
+    #perm-overlay p {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.9;
+      font-family: -apple-system, sans-serif;
+      font-weight: 400;
+      letter-spacing: 0;
+      max-width: 300px;
+      margin-bottom: 36px;
+    }
+
+    #perm-btn {
+      background: var(--spd);
+      color: #000;
+      border: none; outline: none;
+      border-radius: 16px;
+      padding: 18px 52px;
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      cursor: pointer;
+      box-shadow: 0 0 30px #00ff8866;
+      -webkit-appearance: none;
+    }
+
+    #perm-btn:active { opacity: 0.8; transform: scale(0.97); }
+
+    /* ════════════════════════════
+       SPEEDOMETER SECTION (top half)
+    ════════════════════════════ */
+    #speed-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(170deg, #0a0a14 0%, #0e0e1e 100%);
+      border-bottom: 1px solid var(--line);
+      position: relative;
+      padding: 16px 20px 12px;
+      min-height: 0;
+    }
+
+    /* GPS status chip top-right */
+    #gps-chip {
+      position: absolute;
+      top: 12px; right: 14px;
+      display: flex; align-items: center; gap: 5px;
+      background: #0a0a14;
+      border: 1px solid #1a1a2e;
+      border-radius: 20px;
+      padding: 4px 10px 4px 8px;
+    }
+
+    #gps-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #2a2a3a;
+      transition: background 0.4s, box-shadow 0.4s;
+    }
+
+    #gps-dot.on {
+      background: var(--spd);
+      box-shadow: 0 0 8px var(--spd);
+    }
+
+    #gps-text {
+      font-size: 8px;
+      letter-spacing: 2px;
+      color: #444;
+      text-transform: uppercase;
+      transition: color 0.4s;
+    }
+
+    #gps-text.on { color: var(--spd); }
+
+    /* Reset button top-left */
+    #reset-btn {
+      position: absolute;
+      top: 12px; left: 14px;
+      background: none;
+      border: 1px solid #1a1a2e;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-family: 'Orbitron', monospace;
+      font-size: 8px;
+      letter-spacing: 2px;
+      color: #444;
+      cursor: pointer;
+    }
+    #reset-btn:active { border-color: #444; color: #888; }
+
+    #speed-label {
+      font-size: 9px;
+      letter-spacing: 5px;
+      color: #333;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    /* Big digital number */
+    #speed-num {
+      font-size: clamp(88px, 24vw, 148px);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -4px;
+      color: var(--spd);
+      text-shadow: 0 0 40px var(--spd), 0 0 80px color-mix(in srgb, var(--spd) 30%, transparent);
+      transition: color 0.4s, text-shadow 0.4s;
+      font-variant-numeric: tabular-nums;
+      min-width: 3ch;
+      text-align: center;
+    }
+
+    /* Unit toggle */
+    #unit-btn {
+      margin-top: 4px;
+      background: none;
+      border: 1px solid #222;
+      border-radius: 20px;
+      padding: 5px 16px;
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: #555;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #unit-btn:active { border-color: var(--spd); color: var(--spd); }
+
+    /* Stats row */
+    .stats {
+      display: flex;
+      gap: 28px;
+      margin-top: 12px;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .stat-val {
+      font-size: 17px;
+      font-weight: 700;
+      color: #666;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.3s;
+    }
+
+    .stat-label {
+      font-size: 7px;
+      letter-spacing: 2.5px;
+      color: #333;
+      text-transform: uppercase;
+    }
+
+    /* Speed bar */
+    #speed-bar-wrap {
+      width: 100%;
+      max-width: 320px;
+      height: 3px;
+      background: #1a1a2a;
+      border-radius: 4px;
+      margin-top: 14px;
+      overflow: hidden;
+    }
+    #speed-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: 4px;
+      background: var(--spd);
+      box-shadow: 0 0 8px var(--spd);
+      transition: width 0.5s ease, background 0.4s;
+    }
+
+    /* ════════════════════════════
+       SPOTIFY SECTION (bottom half)
+    ════════════════════════════ */
+    #spotify-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #0a0a12;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #spotify-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+
+    .sp-logo {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 10px; letter-spacing: 3px; color: #1DB954;
+    }
+
+    .sp-logo svg { width: 18px; height: 18px; }
+
+    #change-btn {
+      background: none;
+      border: 1px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 4px 12px;
+      font-family: 'Orbitron', monospace;
+      font-size: 8px;
+      letter-spacing: 2px;
+      color: #444;
+      cursor: pointer;
+    }
+    #change-btn:active { border-color: #1DB954; color: #1DB954; }
+
+    #sp-frame-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #sp-iframe {
+      width: 100%; height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* ════════════════════════════
+       URL MODAL (bottom sheet)
+    ════════════════════════════ */
+    #url-modal {
+      display: none;
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.7);
+      align-items: flex-end;
+    }
+    #url-modal.open { display: flex; }
+
+    #url-sheet {
+      width: 100%;
+      background: #131320;
+      border-radius: 20px 20px 0 0;
+      border-top: 1px solid #222;
+      padding: 20px 18px 36px;
+    }
+
+    #url-sheet h3 {
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #666;
+      margin-bottom: 16px;
+    }
+
+    #url-input {
+      width: 100%;
+      background: #0e0e18;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 14px;
+      color: #fff;
+      font-size: 14px;
+      font-family: -apple-system, sans-serif;
+      outline: none;
+      margin-bottom: 14px;
+      -webkit-appearance: none;
+    }
+    #url-input:focus { border-color: #1DB954; }
+    #url-input::placeholder { color: #333; }
+
+    .sheet-btns { display: flex; gap: 10px; }
+
+    .sheet-btns button {
+      flex: 1;
+      padding: 14px;
+      border-radius: 12px;
+      border: none; outline: none;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      -webkit-appearance: none;
+    }
+
+    #url-ok { background: #1DB954; color: #000; font-weight: 900; }
+    #url-ok:active { opacity: 0.8; }
+    #url-cancel { background: #0e0e18; color: #555; border: 1px solid #222; }
+    #url-cancel:active { border-color: #444; color: #888; }
+  </style>
+</head>
+<body>
+
+<!-- ── Permission Overlay ── -->
+<div id="perm-overlay">
+  <div class="logo-icon">🏎️</div>
+  <h1>SPEEDTUNE</h1>
+  <p>
+    Esta app usa el GPS de tu iPhone para medir la velocidad en tiempo real con la máxima precisión.<br><br>
+    Toca el botón para activar los permisos de ubicación.
+  </p>
+  <button id="perm-btn" onclick="requestGPS()">ACTIVAR GPS</button>
+</div>
+
+<!-- ── Speedometer ── -->
+<div id="speed-section">
+  <!-- Top left: reset -->
+  <button id="reset-btn" onclick="resetStats()">RESET</button>
+
+  <!-- Top right: GPS chip -->
+  <div id="gps-chip">
+    <div id="gps-dot"></div>
+    <span id="gps-text">GPS</span>
+  </div>
+
+  <div id="speed-label">VELOCIDAD</div>
+  <div id="speed-num">0</div>
+  <button id="unit-btn" onclick="toggleUnit()">KM/H</button>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val" id="stat-max">0</div>
+      <div class="stat-label">Máxima</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-avg">0</div>
+      <div class="stat-label">Promedio</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-acc">—</div>
+      <div class="stat-label">Precisión</div>
+    </div>
+  </div>
+
+  <div id="speed-bar-wrap">
+    <div id="speed-bar"></div>
+  </div>
+</div>
+
+<!-- ── Spotify ── -->
+<div id="spotify-section">
+  <div id="spotify-header">
+    <div class="sp-logo">
+      <!-- Spotify logo SVG -->
+      <svg viewBox="0 0 24 24" fill="#1DB954" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+      </svg>
+      SPOTIFY
+    </div>
+    <button id="change-btn" onclick="openModal()">CAMBIAR PLAYLIST</button>
+  </div>
+
+  <div id="sp-frame-wrap">
+    <!-- Default: Driving playlist -->
+    <iframe id="sp-iframe"
+      src="https://open.spotify.com/embed/playlist/37i9dQZF1DX0jgyAiPl8Af?utm_source=generator&theme=0"
+      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+      loading="lazy">
+    </iframe>
+  </div>
+</div>
+
+<!-- ── URL Modal ── -->
+<div id="url-modal">
+  <div id="url-sheet">
+    <h3>PEGA TU LINK DE SPOTIFY</h3>
+    <input id="url-input" type="url"
+      placeholder="https://open.spotify.com/playlist/..."
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <div class="sheet-btns">
+      <button id="url-cancel" onclick="closeModal()">CANCELAR</button>
+      <button id="url-ok" onclick="applyUrl()">APLICAR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ─────────── State ─────────── */
+  let unit = 'kmh';
+  let watchId = null;
+  let maxSpd = 0;
+  let history = [];
+  const MAX_SPEED_BAR = 200; // km/h reference for bar (100%)
+
+  /* ─────────── DOM refs ─────────── */
+  const numEl    = document.getElementById('speed-num');
+  const unitBtn  = document.getElementById('unit-btn');
+  const label    = document.getElementById('speed-label');
+  const gpsDot   = document.getElementById('gps-dot');
+  const gpsText  = document.getElementById('gps-text');
+  const statMax  = document.getElementById('stat-max');
+  const statAvg  = document.getElementById('stat-avg');
+  const statAcc  = document.getElementById('stat-acc');
+  const speedBar = document.getElementById('speed-bar');
+
+  /* ─────────── GPS permissions ─────────── */
+  function requestGPS() {
+    if (!navigator.geolocation) {
+      alert('Tu navegador no soporta geolocalización. Abre esta página en Safari.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        document.getElementById('perm-overlay').style.display = 'none';
+        startWatch();
+      },
+      (err) => {
+        let msg = 'No se pudo obtener el permiso de ubicación.';
+        if (err.code === 1) msg = 'Permiso denegado. Ve a Configuración → Safari → Ubicación y permite el acceso.';
+        alert(msg);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  }
+
+  /* ─────────── Speedometer ─────────── */
+  function startWatch() {
+    gpsDot.classList.add('on');
+    gpsText.classList.add('on');
+    gpsText.textContent = 'GPS ON';
+
+    watchId = navigator.geolocation.watchPosition(
+      onPosition,
+      onGPSError,
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 5000
+      }
+    );
+  }
+
+  function onPosition(pos) {
+    const raw = pos.coords.speed;   // m/s (null when stationary)
+    const acc = pos.coords.accuracy; // meters
+
+    statAcc.textContent = acc != null ? `±${Math.round(acc)}m` : '—';
+
+    const mps = (raw != null && raw >= 0) ? raw : 0;
+
+    // Convert
+    const spd = unit === 'kmh'
+      ? Math.round(mps * 3.6)
+      : Math.round(mps * 2.23694);
+
+    // Display
+    numEl.textContent = spd;
+    setColor(unit === 'kmh' ? spd : spd * 1.60934);
+
+    // Bar (always use km/h equivalent)
+    const kmh = unit === 'kmh' ? spd : spd * 1.60934;
+    const pct = Math.min((kmh / MAX_SPEED_BAR) * 100, 100);
+    speedBar.style.width = pct + '%';
+
+    // Max
+    if (spd > maxSpd) {
+      maxSpd = spd;
+      statMax.textContent = maxSpd;
+    }
+
+    // Rolling avg (last 8 readings)
+    history.push(spd);
+    if (history.length > 8) history.shift();
+    const avg = Math.round(history.reduce((a, b) => a + b, 0) / history.length);
+    statAvg.textContent = avg;
+  }
+
+  function onGPSError(err) {
+    gpsDot.classList.remove('on');
+    gpsText.classList.remove('on');
+    gpsText.textContent = 'SIN GPS';
+    console.warn('GPS error:', err.code, err.message);
+  }
+
+  function setColor(kmh) {
+    let c;
+    if      (kmh < 60)  c = '#00ff88'; // green
+    else if (kmh < 100) c = '#ffdd00'; // yellow
+    else if (kmh < 130) c = '#ff8800'; // orange
+    else                 c = '#ff3333'; // red
+
+    document.documentElement.style.setProperty('--spd', c);
+    numEl.style.color = c;
+    numEl.style.textShadow = `0 0 40px ${c}, 0 0 80px ${c}55`;
+    speedBar.style.background = c;
+    speedBar.style.boxShadow  = `0 0 10px ${c}`;
+  }
+
+  function toggleUnit() {
+    unit = unit === 'kmh' ? 'mph' : 'kmh';
+    unitBtn.textContent = unit === 'kmh' ? 'KM/H' : 'MPH';
+    label.textContent   = unit === 'kmh' ? 'VELOCIDAD' : 'SPEED';
+    resetStats();
+  }
+
+  function resetStats() {
+    maxSpd = 0;
+    history = [];
+    statMax.textContent = '0';
+    statAvg.textContent = '0';
+    numEl.textContent = '0';
+    speedBar.style.width = '0%';
+    setColor(0);
+  }
+
+  /* ─────────── Spotify modal ─────────── */
+  function openModal() {
+    document.getElementById('url-modal').classList.add('open');
+    setTimeout(() => document.getElementById('url-input').focus(), 100);
+  }
+
+  function closeModal() {
+    document.getElementById('url-modal').classList.remove('open');
+  }
+
+  function applyUrl() {
+    const raw = document.getElementById('url-input').value.trim();
+    if (!raw) { closeModal(); return; }
+
+    let embed = raw;
+
+    // Auto-convert share URL → embed URL
+    if (raw.includes('open.spotify.com') && !raw.includes('/embed/')) {
+      embed = raw.replace('https://open.spotify.com/', 'https://open.spotify.com/embed/');
+      embed = embed.split('?')[0] + '?utm_source=generator&theme=0';
+    }
+
+    document.getElementById('sp-iframe').src = embed;
+    document.getElementById('url-input').value = '';
+    closeModal();
+  }
+
+  // Close modal on backdrop tap
+  document.getElementById('url-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('url-modal')) closeModal();
+  });
+
+  // Enter key applies URL
+  document.getElementById('url-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyUrl();
+  });
+
+  // Prevent iOS double-tap zoom
+  let lastTap = 0;
+  document.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTap < 280) e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+</script>
+</body>
+</html>
